@@ -19,6 +19,7 @@ export interface EasyshipConfig {
   incotermDefault?: 'DDP' | 'DDU';
   ddpRestricted?: string[];
   baseUrlOverride?: string;
+  labelFormat?: 'PDF' | 'PNG' | 'ZPL';
 }
 
 export class EasyshipProvider extends BaseShippingProvider {
@@ -29,6 +30,7 @@ export class EasyshipProvider extends BaseShippingProvider {
   private dimUnit: 'cm' | 'in';
   private incotermDefault?: 'DDP' | 'DDU';
   private ddpRestricted?: string[];
+  private labelFormat?: 'PDF' | 'PNG' | 'ZPL';
 
   constructor(private config: EasyshipConfig) {
     super();
@@ -40,6 +42,7 @@ export class EasyshipProvider extends BaseShippingProvider {
     this.dimUnit = config.dimUnit || 'in';
     this.incotermDefault = config.incotermDefault;
     this.ddpRestricted = config.ddpRestricted?.map((c) => c.toUpperCase());
+    this.labelFormat = config.labelFormat;
   }
 
   async getRates(request: RateRequest): Promise<Rate[]> {
@@ -88,7 +91,7 @@ export class EasyshipProvider extends BaseShippingProvider {
       provider: this.name,
       trackingNumber: label.tracking_number,
       labelUrl: label.label_url,
-      labelFormat: 'PDF',
+      labelFormat: (label.label_format as any) || this.labelFormat || 'PDF',
       rate: request.rate!,
       createdAt: new Date(shipment.created_at),
     };

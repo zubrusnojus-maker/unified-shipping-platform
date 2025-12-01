@@ -43,8 +43,17 @@ export function createProvidersFromEnv(): Map<string, ShippingProvider> {
 
   // Easyship
   if (process.env.EASYSHIP_API_KEY) {
-    const weightUnit = (process.env.EASYSHIP_UNITS_WEIGHT || 'lb').toLowerCase();
-    const dimUnit = (process.env.EASYSHIP_UNITS_DIMENSIONS || 'in').toLowerCase();
+    // Prefer new names; fall back to legacy names for compatibility
+    const weightUnitEnv = (
+      process.env.EASYSHIP_WEIGHT_UNIT ||
+      process.env.EASYSHIP_UNITS_WEIGHT ||
+      'lb'
+    ).toLowerCase();
+    const dimUnitEnv = (
+      process.env.EASYSHIP_DIMENSION_UNIT ||
+      process.env.EASYSHIP_UNITS_DIMENSIONS ||
+      'in'
+    ).toLowerCase();
     const incotermDefaultEnv = (process.env.EASYSHIP_INCOTERM_DEFAULT || 'DDP').toUpperCase();
     const incotermDefault = incotermDefaultEnv === 'DDU' ? 'DDU' : 'DDP';
     const ddpRestricted = (process.env.EASYSHIP_DDP_RESTRICTED || 'MX,BR,AR')
@@ -58,11 +67,12 @@ export function createProvidersFromEnv(): Map<string, ShippingProvider> {
         apiKey: process.env.EASYSHIP_API_KEY,
         mode: process.env.EASYSHIP_MODE === 'production' ? 'production' : 'sandbox',
         currency: process.env.EASYSHIP_CURRENCY || 'USD',
-        weightUnit: weightUnit === 'kg' ? 'kg' : 'lb',
-        dimUnit: dimUnit === 'cm' ? 'cm' : 'in',
+        weightUnit: weightUnitEnv === 'kg' ? 'kg' : 'lb',
+        dimUnit: dimUnitEnv === 'cm' ? 'cm' : 'in',
         incotermDefault,
         ddpRestricted,
         baseUrlOverride: process.env.EASYSHIP_BASE_URL,
+        labelFormat: (process.env.EASYSHIP_LABEL_FORMAT as any) || undefined,
       }),
     );
   }
