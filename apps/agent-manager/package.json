@@ -1,0 +1,24 @@
+{
+  "name": "@unified/agent-manager",
+  "version": "1.0.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts"
+  },
+  "dependencies": {
+    "bullmq": "^5.65.0",
+    "redis": "^4.6.12",
+    "@octokit/rest": "^22.0.1",
+    "dotenv": "^16.3.1",
+    "@unified/types": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "tsx": "^4.6.0",
+    "typescript": "^5.7.2"
+  }
+}

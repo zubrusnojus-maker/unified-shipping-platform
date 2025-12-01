@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src"
+  },
+  "include": ["src/**/*"],
+  "references": [
+    { "path": "../../packages/types" },
+    { "path": "../../packages/database" },
+    { "path": "../../packages/shipping-providers" },
+    { "path": "../../packages/chatbot" },
+    { "path": "../../packages/agents-adapter" }
+  ]
+}
