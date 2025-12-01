@@ -41,7 +41,7 @@ export class EasyshipProvider extends BaseShippingProvider {
       }),
     });
 
-    const data = await response.json();
+    const data: any = await response.json();
     return data.rates.map((r: any) => this.normalizeRate(r));
   }
 
@@ -59,13 +59,13 @@ export class EasyshipProvider extends BaseShippingProvider {
       }),
     });
 
-    const shipment = await shipmentResponse.json();
+    const shipment: any = await shipmentResponse.json();
 
     const labelResponse = await this.request(`/v2/labels/${shipment.easyship_shipment_id}`, {
       method: 'POST',
     });
 
-    const label = await labelResponse.json();
+    const label: any = await labelResponse.json();
 
     return {
       id: shipment.easyship_shipment_id,
@@ -85,7 +85,7 @@ export class EasyshipProvider extends BaseShippingProvider {
 
   async trackShipment(trackingNumber: string): Promise<TrackingInfo> {
     const response = await this.request(`/v2/tracking?tracking_number=${trackingNumber}`);
-    const data = await response.json();
+    const data: any = await response.json();
 
     return {
       trackingNumber: data.tracking_number,
@@ -118,7 +118,7 @@ export class EasyshipProvider extends BaseShippingProvider {
     });
 
     if (!response.ok) {
-      const error = await response.json();
+      const error: any = await response.json();
       throw new Error(`Easyship API error: ${error.message || response.statusText}`);
     }
 

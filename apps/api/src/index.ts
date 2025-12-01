@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Application } from 'express';
 import cors from 'cors';
 import * as dotenv from 'dotenv';
 
@@ -9,7 +9,7 @@ import { memoriesRouter } from './routes/memories.js';
 
 dotenv.config();
 
-const app = express();
+const app: Application = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware

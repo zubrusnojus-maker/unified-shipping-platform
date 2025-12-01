@@ -51,7 +51,7 @@ export class EasyPostProvider extends BaseShippingProvider {
       body: JSON.stringify({ address: this.transformAddress(address), verify: ['delivery'] }),
     });
 
-    const data = await response.json();
+    const data: any = await response.json();
 
     return {
       valid: !data.verifications?.delivery?.errors?.length,
@@ -63,7 +63,7 @@ export class EasyPostProvider extends BaseShippingProvider {
 
   async trackShipment(trackingNumber: string): Promise<TrackingInfo> {
     const response = await this.request(`/trackers/${trackingNumber}`);
-    const data = await response.json();
+    const data: any = await response.json();
 
     return {
       trackingNumber: data.tracking_code,
@@ -83,7 +83,7 @@ export class EasyPostProvider extends BaseShippingProvider {
     await this.request(`/shipments/${shipmentId}/refund`, { method: 'POST' });
   }
 
-  private async createShipment(request: RateRequest) {
+  private async createShipment(request: RateRequest): Promise<any> {
     const response = await this.request('/shipments', {
       method: 'POST',
       body: JSON.stringify({
@@ -96,16 +96,16 @@ export class EasyPostProvider extends BaseShippingProvider {
       }),
     });
 
-    return response.json();
+    return response.json() as Promise<any>;
   }
 
-  private async buyShipment(shipmentId: string, rateId: string) {
+  private async buyShipment(shipmentId: string, rateId: string): Promise<any> {
     const response = await this.request(`/shipments/${shipmentId}/buy`, {
       method: 'POST',
       body: JSON.stringify({ rate: { id: rateId } }),
     });
 
-    return response.json();
+    return response.json() as Promise<any>;
   }
 
   private async request(path: string, options: RequestInit = {}) {
@@ -119,7 +119,7 @@ export class EasyPostProvider extends BaseShippingProvider {
     });
 
     if (!response.ok) {
-      const error = await response.json();
+      const error: any = await response.json();
       throw new Error(`EasyPost API error: ${error.error?.message || response.statusText}`);
     }
 

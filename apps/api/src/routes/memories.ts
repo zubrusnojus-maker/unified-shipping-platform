@@ -1,7 +1,7 @@
-import { Router } from 'express';
+import { Router, type IRouter } from 'express';
 import { createChatbot, HuggingFaceProvider } from '@unified/chatbot';
 
-const router = Router();
+const router: IRouter = Router();
 
 // Initialize chatbot lazily (shared with chat router in real implementation)
 let chatbot: ReturnType<typeof createChatbot> | null = null;

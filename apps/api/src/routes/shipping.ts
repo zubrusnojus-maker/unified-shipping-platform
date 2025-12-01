@@ -1,8 +1,8 @@
-import { Router } from 'express';
+import { Router, type IRouter } from 'express';
 import { createProvidersFromEnv, N8nProvider } from '@unified/shipping-providers';
 import type { RateRequest, LabelRequest } from '@unified/types';
 
-const router = Router();
+const router: IRouter = Router();
 
 // Initialize providers
 const providers = createProvidersFromEnv();

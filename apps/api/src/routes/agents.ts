@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type IRouter } from 'express';
 import {
   enqueueCodeGenerationTask,
   getJobStatus,
@@ -8,7 +8,7 @@ import {
 } from '@unified/agents-adapter';
 import type { AgentTaskData } from '@unified/types';
 
-const router = Router();
+const router: IRouter = Router();
 
 /**
  * POST /api/agents/generate
@@ -34,7 +34,7 @@ router.post('/generate', async (req, res) => {
     });
 
     // If wait=true, wait for completion
-    if (wait === 'true' || wait === true) {
+    if (wait === 'true') {
       try {
         const result = await waitForJob(jobId, Number(timeout));
         res.json({

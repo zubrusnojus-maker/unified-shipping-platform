@@ -1,4 +1,4 @@
-import type { Memory, MemoryType, MemorySearchResult, ChatMessage } from '@unified/types';
+import type { Memory, MemorySearchResult, ChatMessage } from '@unified/types';
 import { MEMORY_EXTRACTION_PATTERNS } from './prompts.js';
 
 export interface MemoryStore {

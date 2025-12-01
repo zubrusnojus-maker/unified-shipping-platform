@@ -35,7 +35,7 @@ export class N8nProvider extends BaseShippingProvider {
     tracking: string;
   };
 
-  constructor(private config: N8nConfig) {
+  constructor(config: N8nConfig) {
     super();
     this.baseUrl = config.baseUrl;
     this.paths = {
@@ -54,7 +54,7 @@ export class N8nProvider extends BaseShippingProvider {
       customs: request.customs,
     });
 
-    const data = await response.json();
+    const data: any = await response.json();
 
     // n8n can return rates from multiple aggregators
     return (data.rates || []).map((r: any) => this.normalizeRate(r));
@@ -70,7 +70,7 @@ export class N8nProvider extends BaseShippingProvider {
       service: request.service,
     });
 
-    const data = await response.json();
+    const data: any = await response.json();
 
     return {
       id: data.shipment_id || data.id,
@@ -94,7 +94,7 @@ export class N8nProvider extends BaseShippingProvider {
       tracking_number: trackingNumber,
     });
 
-    const data = await response.json();
+    const data: any = await response.json();
 
     return {
       trackingNumber: data.tracking_number || trackingNumber,
@@ -136,11 +136,10 @@ export class N8nProvider extends BaseShippingProvider {
     speedPreference?: string;
     insuranceRequired?: boolean;
   }): Promise<{ shipmentId: string }> {
+    const addressData = this.transformAddress(data.address);
     const response = await this.webhookRequest(this.paths.intake, {
       customer_name: data.customerName,
-      email: data.email,
-      phone: data.phone,
-      ...this.transformAddress(data.address),
+      ...addressData,
       weight_kg: data.parcel.weight,
       length_cm: data.parcel.length,
       width_cm: data.parcel.width,
@@ -151,7 +150,7 @@ export class N8nProvider extends BaseShippingProvider {
       insurance_required: data.insuranceRequired,
     });
 
-    const result = await response.json();
+    const result: any = await response.json();
     return { shipmentId: result.shipment_id || result.id };
   }
 
