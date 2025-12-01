@@ -13,17 +13,33 @@ import type {
 export interface EasyshipConfig {
   apiKey: string;
   mode: 'sandbox' | 'production';
+  currency?: string;
+  weightUnit?: 'kg' | 'lb';
+  dimUnit?: 'cm' | 'in';
+  incotermDefault?: 'DDP' | 'DDU';
+  ddpRestricted?: string[];
+  baseUrlOverride?: string;
 }
 
 export class EasyshipProvider extends BaseShippingProvider {
   readonly name = 'Easyship';
   private baseUrl: string;
+  private currency: string;
+  private weightUnit: 'kg' | 'lb';
+  private dimUnit: 'cm' | 'in';
+  private incotermDefault?: 'DDP' | 'DDU';
+  private ddpRestricted?: string[];
 
   constructor(private config: EasyshipConfig) {
     super();
-    this.baseUrl = config.mode === 'sandbox'
-      ? 'https://api.easyship.com/sandbox'
-      : 'https://api.easyship.com';
+    this.baseUrl =
+      config.baseUrlOverride ||
+      (config.mode === 'sandbox' ? 'https://api.easyship.com/sandbox' : 'https://api.easyship.com');
+    this.currency = config.currency || 'USD';
+    this.weightUnit = config.weightUnit || 'lb';
+    this.dimUnit = config.dimUnit || 'in';
+    this.incotermDefault = config.incotermDefault;
+    this.ddpRestricted = config.ddpRestricted?.map((c) => c.toUpperCase());
   }
 
   async getRates(request: RateRequest): Promise<Rate[]> {
@@ -35,8 +51,8 @@ export class EasyshipProvider extends BaseShippingProvider {
         incoterms: this.determineIncoterm(request.destination.country),
         parcels: [this.transformParcel(request.parcel)],
         shipping_settings: {
-          units: { weight: 'lb', dimensions: 'in' },
-          output_currency: 'USD',
+          units: { weight: this.weightUnit, dimensions: this.dimUnit },
+          output_currency: this.currency,
         },
       }),
     });
@@ -91,12 +107,13 @@ export class EasyshipProvider extends BaseShippingProvider {
       trackingNumber: data.tracking_number,
       carrier: data.courier_name,
       status: this.mapStatus(data.status),
-      events: data.checkpoints?.map((cp: any) => ({
-        status: this.mapStatus(cp.checkpoint_status),
-        message: cp.message,
-        datetime: new Date(cp.created_at),
-        location: cp.location,
-      })) || [],
+      events:
+        data.checkpoints?.map((cp: any) => ({
+          status: this.mapStatus(cp.checkpoint_status),
+          message: cp.message,
+          datetime: new Date(cp.created_at),
+          location: cp.location,
+        })) || [],
       estimatedDelivery: data.estimated_delivery_date
         ? new Date(data.estimated_delivery_date)
         : undefined,
@@ -111,7 +128,7 @@ export class EasyshipProvider extends BaseShippingProvider {
     const response = await fetch(`${this.baseUrl}${path}`, {
       ...options,
       headers: {
-        'Authorization': `Bearer ${this.config.apiKey}`,
+        Authorization: `Bearer ${this.config.apiKey}`,
         'Content-Type': 'application/json',
         ...options.headers,
       },
@@ -165,20 +182,21 @@ export class EasyshipProvider extends BaseShippingProvider {
   }
 
   private determineIncoterm(destinationCountry: string): 'DDP' | 'DDU' {
-    // DDP restricted countries (Importer of Record restrictions)
-    const DDP_RESTRICTED = ['MX', 'BR', 'AR'];
-    return DDP_RESTRICTED.includes(destinationCountry) ? 'DDU' : 'DDP';
+    const country = (destinationCountry || '').toUpperCase();
+    const ddpRestricted = this.ddpRestricted || ['MX', 'BR', 'AR'];
+    const defaultIncoterm = this.incotermDefault || 'DDP';
+    return ddpRestricted.includes(country) ? 'DDU' : defaultIncoterm;
   }
 
   private mapStatus(status: string): TrackingStatus {
     const map: Record<string, TrackingStatus> = {
-      'InfoReceived': 'label_created' as TrackingStatus,
-      'InTransit': 'in_transit' as TrackingStatus,
-      'OutForDelivery': 'out_for_delivery' as TrackingStatus,
-      'Delivered': 'delivered' as TrackingStatus,
-      'AvailableForPickup': 'out_for_delivery' as TrackingStatus,
-      'FailedAttempt': 'exception' as TrackingStatus,
-      'Exception': 'exception' as TrackingStatus,
+      InfoReceived: 'label_created' as TrackingStatus,
+      InTransit: 'in_transit' as TrackingStatus,
+      OutForDelivery: 'out_for_delivery' as TrackingStatus,
+      Delivered: 'delivered' as TrackingStatus,
+      AvailableForPickup: 'out_for_delivery' as TrackingStatus,
+      FailedAttempt: 'exception' as TrackingStatus,
+      Exception: 'exception' as TrackingStatus,
     };
     return map[status] || ('exception' as TrackingStatus);
   }

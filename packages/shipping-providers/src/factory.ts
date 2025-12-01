@@ -32,29 +32,53 @@ export function createProvidersFromEnv(): Map<string, ShippingProvider> {
 
   // EasyPost
   if (process.env.EASYPOST_API_KEY) {
-    providers.set('easypost', new EasyPostProvider({
-      apiKey: process.env.EASYPOST_API_KEY,
-      mode: process.env.EASYPOST_MODE === 'production' ? 'production' : 'test',
-    }));
+    providers.set(
+      'easypost',
+      new EasyPostProvider({
+        apiKey: process.env.EASYPOST_API_KEY,
+        mode: process.env.EASYPOST_MODE === 'production' ? 'production' : 'test',
+      }),
+    );
   }
 
   // Easyship
   if (process.env.EASYSHIP_API_KEY) {
-    providers.set('easyship', new EasyshipProvider({
-      apiKey: process.env.EASYSHIP_API_KEY,
-      mode: process.env.EASYSHIP_MODE === 'production' ? 'production' : 'sandbox',
-    }));
+    const weightUnit = (process.env.EASYSHIP_UNITS_WEIGHT || 'lb').toLowerCase();
+    const dimUnit = (process.env.EASYSHIP_UNITS_DIMENSIONS || 'in').toLowerCase();
+    const incotermDefaultEnv = (process.env.EASYSHIP_INCOTERM_DEFAULT || 'DDP').toUpperCase();
+    const incotermDefault = incotermDefaultEnv === 'DDU' ? 'DDU' : 'DDP';
+    const ddpRestricted = (process.env.EASYSHIP_DDP_RESTRICTED || 'MX,BR,AR')
+      .split(',')
+      .map((c) => c.trim().toUpperCase())
+      .filter(Boolean);
+
+    providers.set(
+      'easyship',
+      new EasyshipProvider({
+        apiKey: process.env.EASYSHIP_API_KEY,
+        mode: process.env.EASYSHIP_MODE === 'production' ? 'production' : 'sandbox',
+        currency: process.env.EASYSHIP_CURRENCY || 'USD',
+        weightUnit: weightUnit === 'kg' ? 'kg' : 'lb',
+        dimUnit: dimUnit === 'cm' ? 'cm' : 'in',
+        incotermDefault,
+        ddpRestricted,
+        baseUrlOverride: process.env.EASYSHIP_BASE_URL,
+      }),
+    );
   }
 
   // n8n
   if (process.env.N8N_WEBHOOK_BASE_URL) {
-    providers.set('n8n', new N8nProvider({
-      baseUrl: process.env.N8N_WEBHOOK_BASE_URL,
-      intakePath: process.env.N8N_WEBHOOK_INTAKE_PATH,
-      ratesPath: process.env.N8N_WEBHOOK_RATES_PATH,
-      bookPath: process.env.N8N_WEBHOOK_BOOK_PATH,
-      trackingPath: process.env.N8N_WEBHOOK_TRACKING_PATH,
-    }));
+    providers.set(
+      'n8n',
+      new N8nProvider({
+        baseUrl: process.env.N8N_WEBHOOK_BASE_URL,
+        intakePath: process.env.N8N_WEBHOOK_INTAKE_PATH,
+        ratesPath: process.env.N8N_WEBHOOK_RATES_PATH,
+        bookPath: process.env.N8N_WEBHOOK_BOOK_PATH,
+        trackingPath: process.env.N8N_WEBHOOK_TRACKING_PATH,
+      }),
+    );
   }
 
   return providers;
