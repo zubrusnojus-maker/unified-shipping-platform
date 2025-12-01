@@ -13,6 +13,7 @@
     "lint": "turbo run lint",
     "test": "turbo run test",
     "smoke:easyship": "node scripts/smoke/easyship.mjs",
+    "smoke:two": "node scripts/smoke/get-rates-for-two.mjs",
     "rates": "node scripts/get-shipping-rates.cjs",
     "labels:purchase": "node scripts/purchase-labels.cjs",
     "easyship:list-addresses": "node scripts/list-easyship-addresses.cjs",
