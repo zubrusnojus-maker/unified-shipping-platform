@@ -40,3 +40,14 @@ n8n_data/
 
 # Sandbox directories
 /tmp/agent-sandbox/
+
+# Shipping artifacts (local scripts output)
+purchased_*.json
+purchased_*.csv
+shipping_rates_result.json
+selected_rates_*.json
+batch_shipments*.json
+*.zip
+
+# Keep scripts but not hardcoded data
+scripts/*.json
