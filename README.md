@@ -172,6 +172,31 @@ See `.env.example` for all available configuration options.
 - `EASYSHIP_API_KEY` - Easyship for international shipping
 - `GITHUB_TOKEN` - GitHub for PR creation (agents)
 
+### Shipping Environment Variables
+
+Common defaults
+
+- `SHIPPING_DEFAULT_CURRENCY`: Fallback currency when provider-specific is not set.
+- `SHIPPER_*`: Default origin fields merged into requests when missing.
+  - `SHIPPER_NAME`, `SHIPPER_COMPANY`, `SHIPPER_STREET1`, `SHIPPER_STREET2`, `SHIPPER_CITY`, `SHIPPER_STATE`, `SHIPPER_ZIP`, `SHIPPER_COUNTRY`, `SHIPPER_PHONE`, `SHIPPER_EMAIL`.
+
+EasyPost
+
+- `EASYPOST_API_KEY`, `EASYPOST_MODE` (`test|production`)
+- `EASYPOST_LABEL_FORMAT` (`PDF|PNG|ZPL`)
+
+Easyship
+
+- `EASYSHIP_API_KEY`, `EASYSHIP_MODE` (`sandbox|production`)
+- `EASYSHIP_CURRENCY` (falls back to `SHIPPING_DEFAULT_CURRENCY` or `USD`)
+- `EASYSHIP_WEIGHT_UNIT` (`lb|kg`), `EASYSHIP_DIMENSION_UNIT` (`in|cm`) — legacy names `EASYSHIP_UNITS_WEIGHT`, `EASYSHIP_UNITS_DIMENSIONS` also supported
+- `EASYSHIP_INCOTERM_DEFAULT` (`DDP|DDU`), `EASYSHIP_DDP_RESTRICTED` (CSV ISO2 list like `MX,BR,AR`)
+- Optional: `EASYSHIP_BASE_URL`, `EASYSHIP_LABEL_FORMAT` (`PDF|PNG|ZPL`)
+
+n8n
+
+- `N8N_WEBHOOK_BASE_URL` and optional `N8N_WEBHOOK_*_PATH` overrides (`intake`, `rates`, `book`, `tracking`)
+
 ## Development
 
 ```bash
@@ -199,13 +224,13 @@ make test
 
 ## Services
 
-| Service | Port | Description |
-|---------|------|-------------|
-| API | 3000 | Unified REST API |
-| n8n | 5678 | Workflow automation |
-| PostgreSQL | 5432 | Database |
-| Redis | 6379 | Job queues |
-| pgAdmin | 8080 | Database admin |
+| Service    | Port | Description         |
+| ---------- | ---- | ------------------- |
+| API        | 3000 | Unified REST API    |
+| n8n        | 5678 | Workflow automation |
+| PostgreSQL | 5432 | Database            |
+| Redis      | 6379 | Job queues          |
+| pgAdmin    | 8080 | Database admin      |
 
 ## License
 

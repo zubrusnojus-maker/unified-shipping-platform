@@ -29,15 +29,21 @@ export function createShippingProvider(providerConfig: ProviderConfig): Shipping
  */
 export function createProvidersFromEnv(): Map<string, ShippingProvider> {
   const providers = new Map<string, ShippingProvider>();
+  const shipperDefaults = getShipperDefaultsFromEnv();
+  const withShipperDefaults = (p: ShippingProvider): ShippingProvider =>
+    shipperDefaults ? new ShipperDefaultsDecorator(p, shipperDefaults) : p;
 
   // EasyPost
   if (process.env.EASYPOST_API_KEY) {
     providers.set(
       'easypost',
-      new EasyPostProvider({
-        apiKey: process.env.EASYPOST_API_KEY,
-        mode: process.env.EASYPOST_MODE === 'production' ? 'production' : 'test',
-      }),
+      withShipperDefaults(
+        new EasyPostProvider({
+          apiKey: process.env.EASYPOST_API_KEY,
+          mode: process.env.EASYPOST_MODE === 'production' ? 'production' : 'test',
+          labelFormat: (process.env.EASYPOST_LABEL_FORMAT as any) || undefined,
+        }),
+      ),
     );
   }
 
@@ -63,17 +69,19 @@ export function createProvidersFromEnv(): Map<string, ShippingProvider> {
 
     providers.set(
       'easyship',
-      new EasyshipProvider({
-        apiKey: process.env.EASYSHIP_API_KEY,
-        mode: process.env.EASYSHIP_MODE === 'production' ? 'production' : 'sandbox',
-        currency: process.env.EASYSHIP_CURRENCY || 'USD',
-        weightUnit: weightUnitEnv === 'kg' ? 'kg' : 'lb',
-        dimUnit: dimUnitEnv === 'cm' ? 'cm' : 'in',
-        incotermDefault,
-        ddpRestricted,
-        baseUrlOverride: process.env.EASYSHIP_BASE_URL,
-        labelFormat: (process.env.EASYSHIP_LABEL_FORMAT as any) || undefined,
-      }),
+      withShipperDefaults(
+        new EasyshipProvider({
+          apiKey: process.env.EASYSHIP_API_KEY,
+          mode: process.env.EASYSHIP_MODE === 'production' ? 'production' : 'sandbox',
+          currency: process.env.EASYSHIP_CURRENCY || process.env.SHIPPING_DEFAULT_CURRENCY || 'USD',
+          weightUnit: weightUnitEnv === 'kg' ? 'kg' : 'lb',
+          dimUnit: dimUnitEnv === 'cm' ? 'cm' : 'in',
+          incotermDefault,
+          ddpRestricted,
+          baseUrlOverride: process.env.EASYSHIP_BASE_URL,
+          labelFormat: (process.env.EASYSHIP_LABEL_FORMAT as any) || undefined,
+        }),
+      ),
     );
   }
 
@@ -92,4 +100,73 @@ export function createProvidersFromEnv(): Map<string, ShippingProvider> {
   }
 
   return providers;
+}
+
+type ShipperDefaults = {
+  name?: string;
+  company?: string;
+  street1?: string;
+  street2?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+  country?: string;
+  phone?: string;
+  email?: string;
+};
+
+class ShipperDefaultsDecorator implements ShippingProvider {
+  readonly name: string;
+  constructor(
+    private inner: ShippingProvider,
+    private defaults: ShipperDefaults,
+  ) {
+    this.name = inner.name;
+  }
+  private apply<T extends { origin: any }>(req: T): T {
+    const origin = { ...(req.origin || {}) };
+    const merged = { ...this.defaults, ...origin };
+    return { ...req, origin: merged } as T;
+  }
+  getRates(request: any) {
+    return this.inner.getRates(this.apply(request));
+  }
+  createLabel(request: any) {
+    return this.inner.createLabel(this.apply(request));
+  }
+  validateAddress(address: any) {
+    return this.inner.validateAddress(address);
+  }
+  trackShipment(trackingNumber: string) {
+    return this.inner.trackShipment(trackingNumber);
+  }
+  cancelShipment(shipmentId: string) {
+    return this.inner.cancelShipment(shipmentId);
+  }
+}
+
+function getShipperDefaultsFromEnv(): ShipperDefaults | null {
+  const hasAny =
+    process.env.SHIPPER_NAME ||
+    process.env.SHIPPER_COMPANY ||
+    process.env.SHIPPER_STREET1 ||
+    process.env.SHIPPER_CITY ||
+    process.env.SHIPPER_STATE ||
+    process.env.SHIPPER_ZIP ||
+    process.env.SHIPPER_COUNTRY ||
+    process.env.SHIPPER_PHONE ||
+    process.env.SHIPPER_EMAIL;
+  if (!hasAny) return null;
+  return {
+    name: process.env.SHIPPER_NAME,
+    company: process.env.SHIPPER_COMPANY,
+    street1: process.env.SHIPPER_STREET1,
+    street2: process.env.SHIPPER_STREET2,
+    city: process.env.SHIPPER_CITY,
+    state: process.env.SHIPPER_STATE,
+    zip: process.env.SHIPPER_ZIP,
+    country: process.env.SHIPPER_COUNTRY,
+    phone: process.env.SHIPPER_PHONE,
+    email: process.env.SHIPPER_EMAIL,
+  };
 }

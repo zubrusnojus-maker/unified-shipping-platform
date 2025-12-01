@@ -13,6 +13,7 @@ import type {
 export interface EasyPostConfig {
   apiKey: string;
   mode: 'test' | 'production';
+  labelFormat?: 'PDF' | 'PNG' | 'ZPL';
 }
 
 export class EasyPostProvider extends BaseShippingProvider {
@@ -39,7 +40,7 @@ export class EasyPostProvider extends BaseShippingProvider {
       provider: this.name,
       trackingNumber: purchased.tracking_code,
       labelUrl: purchased.postage_label.label_url,
-      labelFormat: 'PDF',
+      labelFormat: (this.config.labelFormat as any) || 'PDF',
       rate,
       createdAt: new Date(purchased.created_at),
     };
@@ -56,7 +57,9 @@ export class EasyPostProvider extends BaseShippingProvider {
     return {
       valid: !data.verifications?.delivery?.errors?.length,
       original: address,
-      suggested: data.verifications?.delivery?.success ? this.reverseTransformAddress(data) : undefined,
+      suggested: data.verifications?.delivery?.success
+        ? this.reverseTransformAddress(data)
+        : undefined,
       errors: data.verifications?.delivery?.errors?.map((e: any) => e.message),
     };
   }
@@ -112,7 +115,7 @@ export class EasyPostProvider extends BaseShippingProvider {
     const response = await fetch(`${this.baseUrl}${path}`, {
       ...options,
       headers: {
-        'Authorization': `Bearer ${this.config.apiKey}`,
+        Authorization: `Bearer ${this.config.apiKey}`,
         'Content-Type': 'application/json',
         ...options.headers,
       },
@@ -202,9 +205,10 @@ export class EasyPostProvider extends BaseShippingProvider {
 
   private selectBestRate(rates: any[], request: LabelRequest): any {
     if (request.carrier && request.service) {
-      return rates.find(r =>
-        r.carrier.toLowerCase() === request.carrier!.toLowerCase() &&
-        r.service.toLowerCase() === request.service!.toLowerCase()
+      return rates.find(
+        (r) =>
+          r.carrier.toLowerCase() === request.carrier!.toLowerCase() &&
+          r.service.toLowerCase() === request.service!.toLowerCase(),
       );
     }
     return rates.sort((a, b) => parseFloat(a.rate) - parseFloat(b.rate))[0];
@@ -212,14 +216,14 @@ export class EasyPostProvider extends BaseShippingProvider {
 
   private mapStatus(status: string): TrackingStatus {
     const map: Record<string, TrackingStatus> = {
-      'unknown': 'label_created' as TrackingStatus,
-      'pre_transit': 'pre_transit' as TrackingStatus,
-      'in_transit': 'in_transit' as TrackingStatus,
-      'out_for_delivery': 'out_for_delivery' as TrackingStatus,
-      'delivered': 'delivered' as TrackingStatus,
-      'returned': 'returned' as TrackingStatus,
-      'failure': 'exception' as TrackingStatus,
-      'cancelled': 'cancelled' as TrackingStatus,
+      unknown: 'label_created' as TrackingStatus,
+      pre_transit: 'pre_transit' as TrackingStatus,
+      in_transit: 'in_transit' as TrackingStatus,
+      out_for_delivery: 'out_for_delivery' as TrackingStatus,
+      delivered: 'delivered' as TrackingStatus,
+      returned: 'returned' as TrackingStatus,
+      failure: 'exception' as TrackingStatus,
+      cancelled: 'cancelled' as TrackingStatus,
     };
     return map[status.toLowerCase()] || ('exception' as TrackingStatus);
   }
