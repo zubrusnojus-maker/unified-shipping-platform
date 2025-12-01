@@ -32,10 +32,37 @@ async function getRatesForShipment(origin, destination, dimsText, weightText) {
     const parcel = isEasyPost
       ? { ...dims, weight: w.ounces, unit: 'in', weightUnit: 'lb' }
       : { ...dims, weight: w.pounds, unit: 'in', weightUnit: 'lb' };
+    // Build customs for international shipments. For EasyPost we always include customs.
+    // For Easyship, include customs only if HS codes are available (not in this dataset).
+    const isInternational = (origin.country || '').toUpperCase() !== (destination.country || '').toUpperCase();
+    const customs = isInternational
+      ? {
+          contentsType: 'merchandise',
+          contentsExplanation: undefined,
+          customsCertify: true,
+          customsSigner: origin.name || origin.company || 'Sender',
+          nonDeliveryOption: 'return',
+          restriction: 'none',
+          items: [
+            {
+              description: 'Apparel/Footwear',
+              quantity: 1,
+              value: 0,
+              weight: isEasyPost ? w.ounces : w.pounds,
+              hsCode: '',
+              originCountry: (origin.country || '').toUpperCase(),
+            },
+          ],
+        }
+      : undefined;
+
+    const request = isEasyPost
+      ? { origin, destination, parcel, customs }
+      : { origin, destination, parcel };
 
     requests.push(
       provider
-        .getRates({ origin, destination, parcel })
+        .getRates(request)
         .then((rates) => rates.map((r) => ({ ...r, provider: provider.name })))
         .catch((err) => ({ error: err?.message || String(err), provider: provider.name }))
     );
