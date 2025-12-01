@@ -1,4 +1,6 @@
 import process from 'node:process';
+import fs from 'node:fs';
+import path from 'node:path';
 import { createProvidersFromEnv } from '@unified/shipping-providers';
 
 function toAddress(name, street1, street2, city, state, zip, country, phone, email, company) {
@@ -20,6 +22,23 @@ function parseDims(text) {
   return { length: Number(m[1]), width: Number(m[2]), height: Number(m[3]) };
 }
 
+function loadCustomsConfig(routeKey) {
+  try {
+    const cfgPath = path.resolve(
+      process.cwd(),
+      'scripts/smoke/two-shipments.customs.json'
+    );
+    if (!fs.existsSync(cfgPath)) return undefined;
+    const raw = fs.readFileSync(cfgPath, 'utf8');
+    const data = JSON.parse(raw);
+    const entry = data?.[routeKey];
+    if (!entry || !Array.isArray(entry.items) || entry.items.length === 0) return undefined;
+    return entry;
+  } catch {
+    return undefined;
+  }
+}
+
 async function getRatesForShipment(origin, destination, dimsText, weightText) {
   const dims = parseDims(dimsText);
   const w = parseWeightLbsOz(weightText);
@@ -32,29 +51,49 @@ async function getRatesForShipment(origin, destination, dimsText, weightText) {
     const parcel = isEasyPost
       ? { ...dims, weight: w.ounces, unit: 'in', weightUnit: 'lb' }
       : { ...dims, weight: w.pounds, unit: 'in', weightUnit: 'lb' };
-    // Build customs for international shipments. For EasyPost we always include customs.
-    // For Easyship, include customs only if HS codes are available (not in this dataset).
+    // Build customs for international shipments.
     const isInternational = (origin.country || '').toUpperCase() !== (destination.country || '').toUpperCase();
-    const customs = isInternational
-      ? {
+    let customs;
+    if (isInternational) {
+      const routeKey = `${(origin.country || '').toUpperCase()}-${(destination.country || '').toUpperCase()}`;
+      const cfg = loadCustomsConfig(routeKey);
+      const cfgItems = Array.isArray(cfg?.items) ? cfg.items : [];
+      const mappedItems = cfgItems.map((i) => ({
+        description: i.description,
+        quantity: i.quantity,
+        value: i.value,
+        weight: isEasyPost ? w.ounces : w.pounds,
+        hsCode: i.hsCode,
+        originCountry: (origin.country || '').toUpperCase(),
+      }));
+      const hasValidHsCodes = mappedItems.every((i) => typeof i.hsCode === 'string' && /\d{4,}/.test(i.hsCode));
+
+      // EasyPost: allow customs even with empty HS code
+      // Easyship: require valid HS codes, otherwise omit customs to avoid validation errors
+      if (isEasyPost || hasValidHsCodes) {
+        customs = {
           contentsType: 'merchandise',
           contentsExplanation: undefined,
           customsCertify: true,
           customsSigner: origin.name || origin.company || 'Sender',
           nonDeliveryOption: 'return',
           restriction: 'none',
-          items: [
-            {
-              description: 'Apparel/Footwear',
-              quantity: 1,
-              value: 0,
-              weight: isEasyPost ? w.ounces : w.pounds,
-              hsCode: '',
-              originCountry: (origin.country || '').toUpperCase(),
-            },
-          ],
-        }
-      : undefined;
+          eelPfc: cfg?.eelPfc,
+          items: mappedItems.length
+            ? mappedItems
+            : [
+                {
+                  description: 'Merchandise',
+                  quantity: 1,
+                  value: 0,
+                  weight: isEasyPost ? w.ounces : w.pounds,
+                  hsCode: isEasyPost ? '' : undefined,
+                  originCountry: (origin.country || '').toUpperCase(),
+                },
+              ],
+        };
+      }
+    }
 
     const request = isEasyPost
       ? { origin, destination, parcel, customs }

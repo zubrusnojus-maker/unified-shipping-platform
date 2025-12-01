@@ -1,0 +1,24 @@
+{
+  "US-BE": {
+    "eelPfc": "NOEEI 30.37(a)",
+    "items": [
+      {
+        "description": "Blazer",
+        "quantity": 1,
+        "value": 35,
+        "hsCode": "620333"
+      }
+    ]
+  },
+  "US-CH": {
+    "eelPfc": "NOEEI 30.37(a)",
+    "items": [
+      {
+        "description": "Boots",
+        "quantity": 1,
+        "value": 38,
+        "hsCode": "640399"
+      }
+    ]
+  }
+}
