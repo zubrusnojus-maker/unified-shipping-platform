@@ -14,13 +14,18 @@
   "scripts": {
     "build": "tsc",
     "clean": "rm -rf dist",
-    "dev": "tsc --watch"
+    "dev": "tsc --watch",
+    "lint": "eslint . --max-warnings=0",
+    "test": "vitest run"
   },
   "dependencies": {
+    "@easypost/api": "^8.4.0",
+    "@unified/env": "workspace:*",
     "@unified/types": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "vitest": "^1.6.0"
   }
 }
