@@ -49,11 +49,36 @@ CREATE INDEX IF NOT EXISTS idx_memories_type ON memories(type);
 CREATE INDEX IF NOT EXISTS idx_memories_keywords ON memories USING GIN(keywords);
 
 -- ============================================
+-- SHIP FROM ADDRESSES TABLE
+-- ============================================
+CREATE TABLE IF NOT EXISTS ship_from_addresses (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  company TEXT,
+  street1 TEXT NOT NULL,
+  street2 TEXT,
+  city TEXT NOT NULL,
+  state TEXT NOT NULL,
+  zip TEXT NOT NULL,
+  country TEXT NOT NULL,
+  phone TEXT,
+  email TEXT,
+  is_default BOOLEAN DEFAULT false,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_ship_from_addresses_user_id ON ship_from_addresses(user_id);
+CREATE INDEX IF NOT EXISTS idx_ship_from_addresses_is_default ON ship_from_addresses(is_default);
+
+-- ============================================
 -- SHIPMENTS TABLE (from shipping)
 -- ============================================
 CREATE TABLE IF NOT EXISTS shipments (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  ship_from_address_id UUID REFERENCES ship_from_addresses(id) ON DELETE SET NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
 
@@ -155,7 +180,7 @@ DO $$
 DECLARE
   t TEXT;
 BEGIN
-  FOR t IN SELECT unnest(ARRAY['users', 'conversations', 'shipments', 'agent_tasks'])
+  FOR t IN SELECT unnest(ARRAY['users', 'conversations', 'shipments', 'agent_tasks', 'ship_from_addresses'])
   LOOP
     EXECUTE format('
       DROP TRIGGER IF EXISTS update_%s_updated_at ON %s;

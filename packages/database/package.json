@@ -15,9 +15,11 @@
     "build": "tsc",
     "clean": "rm -rf dist",
     "dev": "tsc --watch",
-    "migrate": "node dist/migrate.js"
+    "migrate": "node dist/migrate.js",
+    "lint": "eslint . --max-warnings=0"
   },
   "dependencies": {
+    "@unified/env": "workspace:*",
     "pg": "^8.11.3",
     "@unified/types": "workspace:*"
   },

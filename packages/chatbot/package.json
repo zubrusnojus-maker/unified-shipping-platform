@@ -14,7 +14,8 @@
   "scripts": {
     "build": "tsc",
     "clean": "rm -rf dist",
-    "dev": "tsc --watch"
+    "dev": "tsc --watch",
+    "lint": "eslint . --max-warnings=0"
   },
   "dependencies": {
     "@huggingface/inference": "^2.8.0",

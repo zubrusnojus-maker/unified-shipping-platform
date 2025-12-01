@@ -1,5 +1,6 @@
 import { Router, type IRouter } from 'express';
 import { createChatbot, HuggingFaceProvider } from '@unified/chatbot';
+import { llmEnv } from '@unified/env';
 
 const router: IRouter = Router();
 
@@ -8,14 +9,14 @@ let chatbot: ReturnType<typeof createChatbot> | null = null;
 
 function getChatbot() {
   if (!chatbot) {
-    const hfToken = process.env.HF_TOKEN;
+    const hfToken = llmEnv.hfToken;
     if (!hfToken) {
       throw new Error('HF_TOKEN environment variable is required');
     }
 
     const llmProvider = new HuggingFaceProvider({
       apiKey: hfToken,
-      model: process.env.HF_MODEL || 'mistralai/Mistral-7B-Instruct-v0.2',
+      model: llmEnv.hfModel,
     });
 
     chatbot = createChatbot({ llmProvider });

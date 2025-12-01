@@ -1,6 +1,7 @@
 import { Worker, Job } from 'bullmq';
 import { createClient } from 'redis';
 import * as dotenv from 'dotenv';
+import { agentEnv } from '@unified/env';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { execSync } from 'child_process';
@@ -9,9 +10,9 @@ import type { WorkerTaskData, WorkerTaskResult, TestResults } from '@unified/typ
 dotenv.config();
 
 // Configuration
-const REDIS_URL = process.env.REDIS_URL || 'redis://redis:6379';
-const QUEUE_NAME = process.env.AGENT_QUEUE_NAME || 'agent-tasks';
-const SANDBOX_DIR = process.env.SANDBOX_DIR || '/tmp/agent-sandbox';
+const REDIS_URL = agentEnv.redisUrl;
+const QUEUE_NAME = agentEnv.queueName;
+const SANDBOX_DIR = agentEnv.sandboxDir;
 
 function getRedisConfig(url: string) {
   const parsed = new URL(url);
@@ -48,7 +49,10 @@ async function createSandbox(jobId: string): Promise<string> {
   return sandboxPath;
 }
 
-async function writeFilesToSandbox(sandboxPath: string, files: Record<string, string>): Promise<void> {
+async function writeFilesToSandbox(
+  sandboxPath: string,
+  files: Record<string, string>,
+): Promise<void> {
   for (const [filePath, content] of Object.entries(files)) {
     const fullPath = path.join(sandboxPath, filePath);
     const dir = path.dirname(fullPath);
@@ -76,10 +80,7 @@ async function setupTestEnvironment(sandboxPath: string): Promise<void> {
     },
   };
 
-  await fs.writeFile(
-    path.join(sandboxPath, 'package.json'),
-    JSON.stringify(packageJson, null, 2)
-  );
+  await fs.writeFile(path.join(sandboxPath, 'package.json'), JSON.stringify(packageJson, null, 2));
 
   const vitestConfig = `
 import { defineConfig } from 'vitest/config';
@@ -142,12 +143,13 @@ async function runVitests(sandboxPath: string): Promise<TestResults> {
       failed: results.numFailedTests || 0,
       total: results.numTotalTests || 0,
       duration: results.testResults?.[0]?.perfStats?.runtime || 0,
-      failures: results.testResults
-        ?.filter((t: any) => t.status === 'failed')
-        .map((t: any) => ({
-          test: t.name,
-          error: t.message || 'Unknown error',
-        })) || [],
+      failures:
+        results.testResults
+          ?.filter((t: any) => t.status === 'failed')
+          .map((t: any) => ({
+            test: t.name,
+            error: t.message || 'Unknown error',
+          })) || [],
     };
   } catch (error: any) {
     console.log('Vitest output:', error.stdout || error.message);
@@ -179,13 +181,14 @@ async function runPlaywrightTests(sandboxPath: string): Promise<TestResults> {
       failed: results.stats?.unexpected || 0,
       total: results.stats?.total || 0,
       duration: results.stats?.duration || 0,
-      failures: results.suites
-        ?.flatMap((s: any) => s.specs)
-        .filter((s: any) => s.ok === false)
-        .map((s: any) => ({
-          test: s.title,
-          error: s.tests?.[0]?.results?.[0]?.error?.message || 'Unknown error',
-        })) || [],
+      failures:
+        results.suites
+          ?.flatMap((s: any) => s.specs)
+          .filter((s: any) => s.ok === false)
+          .map((s: any) => ({
+            test: s.title,
+            error: s.tests?.[0]?.results?.[0]?.error?.message || 'Unknown error',
+          })) || [],
     };
   } catch (error: any) {
     console.log('Playwright output:', error.stdout || error.message);
@@ -200,17 +203,17 @@ async function runPlaywrightTests(sandboxPath: string): Promise<TestResults> {
   }
 }
 
-async function detectTestFramework(sandboxPath: string): Promise<'vitest' | 'playwright' | 'both' | 'none'> {
+async function detectTestFramework(
+  sandboxPath: string,
+): Promise<'vitest' | 'playwright' | 'both' | 'none'> {
   try {
     const files = await fs.readdir(sandboxPath, { recursive: true });
-    const fileNames = files.filter(f => typeof f === 'string') as string[];
+    const fileNames = files.filter((f) => typeof f === 'string') as string[];
 
-    const hasVitestTests = fileNames.some(f =>
-      f.endsWith('.test.ts') || f.endsWith('.spec.ts')
-    );
+    const hasVitestTests = fileNames.some((f) => f.endsWith('.test.ts') || f.endsWith('.spec.ts'));
 
-    const hasPlaywrightTests = fileNames.some(f =>
-      f.includes('/tests/') && (f.endsWith('.test.ts') || f.endsWith('.spec.ts'))
+    const hasPlaywrightTests = fileNames.some(
+      (f) => f.includes('/tests/') && (f.endsWith('.test.ts') || f.endsWith('.spec.ts')),
     );
 
     if (hasVitestTests && hasPlaywrightTests) return 'both';
@@ -323,8 +326,8 @@ async function startWorker() {
     },
     {
       connection: redisConfig,
-      concurrency: parseInt(process.env.WORKER_CONCURRENCY || '1'),
-    }
+      concurrency: agentEnv.workerConcurrency,
+    },
   );
 
   worker.on('completed', (job) => {

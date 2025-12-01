@@ -165,6 +165,8 @@ DELETE /api/memories/:userId
 
 See `.env.example` for all available configuration options.
 
+For naming standards, deprecations, and environment access patterns, see `docs/naming.md`.
+
 ### Required API Keys
 
 - `HF_TOKEN` - HuggingFace API token for chatbot
@@ -189,7 +191,7 @@ Easyship
 
 - `EASYSHIP_API_KEY`, `EASYSHIP_MODE` (`sandbox|production`)
 - `EASYSHIP_CURRENCY` (falls back to `SHIPPING_DEFAULT_CURRENCY` or `USD`)
-- `EASYSHIP_WEIGHT_UNIT` (`lb|kg`), `EASYSHIP_DIMENSION_UNIT` (`in|cm`) — legacy names `EASYSHIP_UNITS_WEIGHT`, `EASYSHIP_UNITS_DIMENSIONS` also supported
+- `EASYSHIP_WEIGHT_UNIT` (`lb|kg`), `EASYSHIP_DIMENSION_UNIT` (`in|cm`) — legacy names `EASYSHIP_UNITS_WEIGHT`, `EASYSHIP_UNITS_DIMENSIONS` also supported (deprecated; warning emitted at startup)
 - `EASYSHIP_INCOTERM_DEFAULT` (`DDP|DDU`), `EASYSHIP_DDP_RESTRICTED` (CSV ISO2 list like `MX,BR,AR`)
 - Optional: `EASYSHIP_BASE_URL`, `EASYSHIP_LABEL_FORMAT` (`PDF|PNG|ZPL`)
 

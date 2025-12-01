@@ -2,6 +2,7 @@ import { ShippingProvider } from './base.js';
 import { EasyPostProvider, EasyPostConfig } from './easypost.js';
 import { EasyshipProvider, EasyshipConfig } from './easyship.js';
 import { N8nProvider, N8nConfig } from './n8n.js';
+import { shippingEnv } from '@unified/env';
 
 export type ProviderConfig =
   | { type: 'easypost'; config: EasyPostConfig }
@@ -20,7 +21,7 @@ export function createShippingProvider(providerConfig: ProviderConfig): Shipping
     case 'n8n':
       return new N8nProvider(providerConfig.config);
     default:
-      throw new Error(`Unknown provider type: ${(providerConfig as any).type}`);
+      throw new Error(`Unknown provider type: ${(providerConfig as { type: string }).type}`);
   }
 }
 
@@ -34,67 +35,62 @@ export function createProvidersFromEnv(): Map<string, ShippingProvider> {
     shipperDefaults ? new ShipperDefaultsDecorator(p, shipperDefaults) : p;
 
   // EasyPost
-  if (process.env.EASYPOST_API_KEY) {
+  if (shippingEnv.easypost.apiKey) {
     providers.set(
       'easypost',
       withShipperDefaults(
         new EasyPostProvider({
-          apiKey: process.env.EASYPOST_API_KEY,
-          mode: process.env.EASYPOST_MODE === 'production' ? 'production' : 'test',
-          labelFormat: (process.env.EASYPOST_LABEL_FORMAT as any) || undefined,
+          apiKey: shippingEnv.easypost.apiKey,
+          mode: shippingEnv.easypost.mode,
+          labelFormat:
+            (shippingEnv.easypost.labelFormat as EasyPostConfig['labelFormat']) || undefined,
+          requireEndShipper:
+            (shippingEnv.easypost.requireEndShipper as EasyPostConfig['requireEndShipper']) ||
+            'auto',
+          endShipperId: shippingEnv.easypost.endShipperId || undefined,
         }),
       ),
     );
   }
 
   // Easyship
-  if (process.env.EASYSHIP_API_KEY) {
+  if (shippingEnv.easyship.apiKey) {
     // Prefer new names; fall back to legacy names for compatibility
-    const weightUnitEnv = (
-      process.env.EASYSHIP_WEIGHT_UNIT ||
-      process.env.EASYSHIP_UNITS_WEIGHT ||
-      'lb'
-    ).toLowerCase();
-    const dimUnitEnv = (
-      process.env.EASYSHIP_DIMENSION_UNIT ||
-      process.env.EASYSHIP_UNITS_DIMENSIONS ||
-      'in'
-    ).toLowerCase();
-    const incotermDefaultEnv = (process.env.EASYSHIP_INCOTERM_DEFAULT || 'DDP').toUpperCase();
+    const weightUnitEnv = (shippingEnv.easyship.weightUnit || 'lb').toLowerCase();
+    const dimUnitEnv = (shippingEnv.easyship.dimensionUnit || 'in').toLowerCase();
+    const incotermDefaultEnv = shippingEnv.easyship.incotermDefault || 'DDP';
     const incotermDefault = incotermDefaultEnv === 'DDU' ? 'DDU' : 'DDP';
-    const ddpRestricted = (process.env.EASYSHIP_DDP_RESTRICTED || 'MX,BR,AR')
-      .split(',')
-      .map((c) => c.trim().toUpperCase())
-      .filter(Boolean);
+    const ddpRestricted = (shippingEnv.easyship.ddpRestricted || []).map((c) => c.toUpperCase());
 
     providers.set(
       'easyship',
       withShipperDefaults(
         new EasyshipProvider({
-          apiKey: process.env.EASYSHIP_API_KEY,
-          mode: process.env.EASYSHIP_MODE === 'production' ? 'production' : 'sandbox',
-          currency: process.env.EASYSHIP_CURRENCY || process.env.SHIPPING_DEFAULT_CURRENCY || 'USD',
+          apiKey: shippingEnv.easyship.apiKey,
+          mode: shippingEnv.easyship.mode,
+          currency: shippingEnv.easyship.currency,
           weightUnit: weightUnitEnv === 'kg' ? 'kg' : 'lb',
           dimUnit: dimUnitEnv === 'cm' ? 'cm' : 'in',
           incotermDefault,
           ddpRestricted,
-          baseUrlOverride: process.env.EASYSHIP_BASE_URL,
-          labelFormat: (process.env.EASYSHIP_LABEL_FORMAT as any) || undefined,
+          baseUrlOverride: shippingEnv.easyship.baseUrlOverride,
+          labelFormat:
+            (shippingEnv.easyship.labelFormat as EasyshipConfig['labelFormat']) || undefined,
         }),
       ),
     );
   }
 
   // n8n
-  if (process.env.N8N_WEBHOOK_BASE_URL) {
+  if (shippingEnv.n8n.baseUrl) {
     providers.set(
       'n8n',
       new N8nProvider({
-        baseUrl: process.env.N8N_WEBHOOK_BASE_URL,
-        intakePath: process.env.N8N_WEBHOOK_INTAKE_PATH,
-        ratesPath: process.env.N8N_WEBHOOK_RATES_PATH,
-        bookPath: process.env.N8N_WEBHOOK_BOOK_PATH,
-        trackingPath: process.env.N8N_WEBHOOK_TRACKING_PATH,
+        baseUrl: shippingEnv.n8n.baseUrl,
+        intakePath: shippingEnv.n8n.intakePath,
+        ratesPath: shippingEnv.n8n.ratesPath,
+        bookPath: shippingEnv.n8n.bookPath,
+        trackingPath: shippingEnv.n8n.trackingPath,
       }),
     );
   }
@@ -123,18 +119,18 @@ class ShipperDefaultsDecorator implements ShippingProvider {
   ) {
     this.name = inner.name;
   }
-  private apply<T extends { origin: any }>(req: T): T {
-    const origin = { ...(req.origin || {}) };
+  private apply<T extends { origin?: import('@unified/types').Address }>(req: T): T {
+    const origin = { ...(req.origin || ({} as import('@unified/types').Address)) };
     const merged = { ...this.defaults, ...origin };
     return { ...req, origin: merged } as T;
   }
-  getRates(request: any) {
+  getRates(request: import('@unified/types').RateRequest) {
     return this.inner.getRates(this.apply(request));
   }
-  createLabel(request: any) {
+  createLabel(request: import('@unified/types').LabelRequest) {
     return this.inner.createLabel(this.apply(request));
   }
-  validateAddress(address: any) {
+  validateAddress(address: import('@unified/types').Address) {
     return this.inner.validateAddress(address);
   }
   trackShipment(trackingNumber: string) {
@@ -146,27 +142,29 @@ class ShipperDefaultsDecorator implements ShippingProvider {
 }
 
 function getShipperDefaultsFromEnv(): ShipperDefaults | null {
-  const hasAny =
-    process.env.SHIPPER_NAME ||
-    process.env.SHIPPER_COMPANY ||
-    process.env.SHIPPER_STREET1 ||
-    process.env.SHIPPER_CITY ||
-    process.env.SHIPPER_STATE ||
-    process.env.SHIPPER_ZIP ||
-    process.env.SHIPPER_COUNTRY ||
-    process.env.SHIPPER_PHONE ||
-    process.env.SHIPPER_EMAIL;
+  const s = shippingEnv.shipperDefaults;
+  const hasAny = !!(
+    s.name ||
+    s.company ||
+    s.street1 ||
+    s.city ||
+    s.state ||
+    s.zip ||
+    s.country ||
+    s.phone ||
+    s.email
+  );
   if (!hasAny) return null;
   return {
-    name: process.env.SHIPPER_NAME,
-    company: process.env.SHIPPER_COMPANY,
-    street1: process.env.SHIPPER_STREET1,
-    street2: process.env.SHIPPER_STREET2,
-    city: process.env.SHIPPER_CITY,
-    state: process.env.SHIPPER_STATE,
-    zip: process.env.SHIPPER_ZIP,
-    country: process.env.SHIPPER_COUNTRY,
-    phone: process.env.SHIPPER_PHONE,
-    email: process.env.SHIPPER_EMAIL,
+    name: s.name,
+    company: s.company,
+    street1: s.street1,
+    street2: s.street2,
+    city: s.city,
+    state: s.state,
+    zip: s.zip,
+    country: s.country,
+    phone: s.phone,
+    email: s.email,
   };
 }

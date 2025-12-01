@@ -54,10 +54,9 @@ export class N8nProvider extends BaseShippingProvider {
       customs: request.customs,
     });
 
-    const data: any = await response.json();
-
+    const data: N8nRatesResponse = (await response.json()) as N8nRatesResponse;
     // n8n can return rates from multiple aggregators
-    return (data.rates || []).map((r: any) => this.normalizeRate(r));
+    return (data.rates || []).map((r) => this.normalizeRate(r));
   }
 
   async createLabel(request: LabelRequest): Promise<Label> {
@@ -70,7 +69,7 @@ export class N8nProvider extends BaseShippingProvider {
       service: request.service,
     });
 
-    const data: any = await response.json();
+    const data: N8nLabelResponse = (await response.json()) as N8nLabelResponse;
 
     return {
       id: data.shipment_id || data.id,
@@ -94,13 +93,13 @@ export class N8nProvider extends BaseShippingProvider {
       tracking_number: trackingNumber,
     });
 
-    const data: any = await response.json();
+    const data: N8nTrackingResponse = (await response.json()) as N8nTrackingResponse;
 
     return {
       trackingNumber: data.tracking_number || trackingNumber,
       carrier: data.carrier || 'unknown',
       status: this.mapStatus(data.status),
-      events: (data.events || []).map((e: any) => ({
+      events: (data.events || []).map((e) => ({
         status: this.mapStatus(e.status),
         message: e.message || e.description,
         datetime: new Date(e.datetime || e.timestamp),
@@ -150,8 +149,8 @@ export class N8nProvider extends BaseShippingProvider {
       insurance_required: data.insuranceRequired,
     });
 
-    const result: any = await response.json();
-    return { shipmentId: result.shipment_id || result.id };
+    const result = (await response.json()) as { shipment_id?: string; id?: string };
+    return { shipmentId: result.shipment_id || result.id || '' };
   }
 
   private async webhookRequest(path: string, data: unknown): Promise<Response> {
@@ -187,7 +186,7 @@ export class N8nProvider extends BaseShippingProvider {
     };
   }
 
-  private normalizeRate(rate: any): Rate {
+  private normalizeRate(rate: N8nRate): Rate {
     return {
       id: rate.id || rate.rate_id,
       provider: rate.aggregator || rate.provider || this.name,
@@ -205,16 +204,62 @@ export class N8nProvider extends BaseShippingProvider {
   private mapStatus(status: string): TrackingStatus {
     const normalized = (status || '').toLowerCase().replace(/[_-]/g, '');
     const map: Record<string, TrackingStatus> = {
-      'pending': 'label_created' as TrackingStatus,
-      'labelcreated': 'label_created' as TrackingStatus,
-      'pretransit': 'pre_transit' as TrackingStatus,
-      'intransit': 'in_transit' as TrackingStatus,
-      'outfordelivery': 'out_for_delivery' as TrackingStatus,
-      'delivered': 'delivered' as TrackingStatus,
-      'returned': 'returned' as TrackingStatus,
-      'exception': 'exception' as TrackingStatus,
-      'cancelled': 'cancelled' as TrackingStatus,
+      pending: 'label_created' as TrackingStatus,
+      labelcreated: 'label_created' as TrackingStatus,
+      pretransit: 'pre_transit' as TrackingStatus,
+      intransit: 'in_transit' as TrackingStatus,
+      outfordelivery: 'out_for_delivery' as TrackingStatus,
+      delivered: 'delivered' as TrackingStatus,
+      returned: 'returned' as TrackingStatus,
+      exception: 'exception' as TrackingStatus,
+      cancelled: 'cancelled' as TrackingStatus,
     };
     return map[normalized] || ('exception' as TrackingStatus);
   }
 }
+
+// Minimal n8n webhook response types
+type N8nRate = {
+  id?: string;
+  rate_id?: string;
+  aggregator?: string;
+  provider?: string;
+  carrier: string;
+  service: string;
+  service_name?: string;
+  price?: string;
+  cost?: string;
+  rate?: string;
+  currency?: string;
+  delivery_days?: number;
+  transit_days?: number;
+  delivery_date?: string;
+  guaranteed?: boolean;
+};
+
+type N8nRatesResponse = { rates?: N8nRate[] };
+
+type N8nLabelResponse = {
+  shipment_id?: string;
+  id?: string;
+  tracking_number: string;
+  label_url: string;
+  label_format?: 'PDF' | 'PNG' | 'ZPL';
+};
+
+type N8nTrackingEvent = {
+  status: string;
+  message?: string;
+  description?: string;
+  datetime?: string;
+  timestamp?: string;
+  location?: { city?: string; state?: string; country?: string };
+};
+
+type N8nTrackingResponse = {
+  tracking_number?: string;
+  carrier?: string;
+  status: string;
+  events?: N8nTrackingEvent[];
+  estimated_delivery?: string;
+};

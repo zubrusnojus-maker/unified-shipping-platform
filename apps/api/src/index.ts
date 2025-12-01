@@ -1,16 +1,18 @@
 import express, { Application } from 'express';
 import cors from 'cors';
 import * as dotenv from 'dotenv';
+import { serverEnv } from '@unified/env';
 
 import { chatRouter } from './routes/chat.js';
 import { shippingRouter } from './routes/shipping.js';
 import { agentsRouter } from './routes/agents.js';
 import { memoriesRouter } from './routes/memories.js';
+import { shipFromRouter } from './routes/ship-from.js';
 
 dotenv.config();
 
 const app: Application = express();
-const PORT = process.env.PORT || 3000;
+const PORT = serverEnv.port;
 
 // Middleware
 app.use(cors());
@@ -39,6 +41,7 @@ app.get('/health', (_req, res) => {
 // API Routes
 app.use('/api/chat', chatRouter);
 app.use('/api/shipping', shippingRouter);
+app.use('/api/ship-from', shipFromRouter);
 app.use('/api/agents', agentsRouter);
 app.use('/api/memories', memoriesRouter);
 
@@ -60,8 +63,10 @@ app.post('/tools/book_shipment', async (req, res) => {
 });
 
 app.post('/tools/get_shipment_status', async (req, res) => {
-  const { shipment_id, tracking_number } = req.body;
-  req.url = `/track/${tracking_number || shipment_id}`;
+  const { shipment_id: shipmentIdSnake, tracking_number: trackingNumberSnake } = req.body;
+  const shipmentId = req.body.shipmentId ?? shipmentIdSnake;
+  const trackingNumber = req.body.trackingNumber ?? trackingNumberSnake;
+  req.url = `/track/${trackingNumber || shipmentId}`;
   req.method = 'GET';
   shippingRouter(req, res, () => {});
 });

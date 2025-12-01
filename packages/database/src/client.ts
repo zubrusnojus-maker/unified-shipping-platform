@@ -1,11 +1,12 @@
 import { Pool, PoolClient, QueryResult, QueryResultRow } from 'pg';
+import { databaseEnv } from '@unified/env';
 
 const pool = new Pool({
-  host: process.env.PGHOST || 'localhost',
-  port: Number(process.env.PGPORT || 5432),
-  user: process.env.PGUSER || 'unified',
-  password: process.env.PGPASSWORD || process.env.POSTGRES_PASSWORD || 'unified_password',
-  database: process.env.PGDATABASE || 'unified_shipping',
+  host: databaseEnv.host,
+  port: databaseEnv.port,
+  user: databaseEnv.user,
+  password: databaseEnv.password,
+  database: databaseEnv.database,
   max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
@@ -17,14 +18,18 @@ pool.on('error', (err) => {
 
 export async function query<T extends QueryResultRow = QueryResultRow>(
   text: string,
-  params?: unknown[]
+  params?: unknown[],
 ): Promise<QueryResult<T>> {
   const start = Date.now();
   const result = await pool.query<T>(text, params);
   const duration = Date.now() - start;
 
   if (process.env.NODE_ENV === 'development') {
-    console.log('Executed query', { text: text.substring(0, 100), duration, rows: result.rowCount });
+    console.log('Executed query', {
+      text: text.substring(0, 100),
+      duration,
+      rows: result.rowCount,
+    });
   }
 
   return result;

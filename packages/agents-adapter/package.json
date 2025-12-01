@@ -14,9 +14,11 @@
   "scripts": {
     "build": "tsc",
     "clean": "rm -rf dist",
-    "dev": "tsc --watch"
+    "dev": "tsc --watch",
+    "lint": "eslint . --max-warnings=0"
   },
   "dependencies": {
+    "@unified/env": "workspace:*",
     "bullmq": "^5.65.0",
     "redis": "^4.6.12",
     "@unified/types": "workspace:*"

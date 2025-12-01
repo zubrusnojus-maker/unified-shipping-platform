@@ -16,6 +16,14 @@ export interface Address {
   email?: string;
 }
 
+export interface ShipFromAddress extends Address {
+  id: string;
+  userId?: string;
+  isDefault: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface Parcel {
   length: number;
   width: number;
@@ -101,7 +109,8 @@ export interface TrackingInfo {
 }
 
 export interface RateRequest {
-  origin: Address;
+  origin?: Address;
+  originId?: string; // Reference to ShipFromAddress
   destination: Address;
   parcel: Parcel;
   customs?: CustomsInfo;
@@ -124,6 +133,7 @@ export interface AddressValidationResult {
 export interface Shipment {
   id: string;
   userId?: string;
+  shipFromAddressId?: string;
   createdAt: Date;
   updatedAt: Date;
 

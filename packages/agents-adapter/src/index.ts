@@ -1,5 +1,6 @@
 import { Queue, QueueEvents } from 'bullmq';
 import { createClient, RedisClientType } from 'redis';
+import { agentEnv } from '@unified/env';
 import type {
   AgentTaskData,
   AgentTaskResult,
@@ -8,8 +9,8 @@ import type {
   EnqueueJobOptions,
 } from '@unified/types';
 
-const REDIS_URL = process.env.REDIS_URL || 'redis://redis:6379';
-const QUEUE_NAME = process.env.AGENT_QUEUE_NAME || 'agent-tasks';
+const REDIS_URL = agentEnv.redisUrl;
+const QUEUE_NAME = agentEnv.queueName;
 
 let redisClient: RedisClientType | null = null;
 let taskQueue: Queue | null = null;
@@ -65,7 +66,7 @@ export async function initializeQueue(): Promise<Queue> {
  */
 export async function enqueueCodeGenerationTask(
   taskData: AgentTaskData,
-  options: EnqueueJobOptions = {}
+  options: EnqueueJobOptions = {},
 ): Promise<string> {
   const queue = await initializeQueue();
 
@@ -129,7 +130,7 @@ export async function getJobStatus(jobId: string): Promise<JobStatus> {
  */
 export async function waitForJob(
   jobId: string,
-  timeout: number = 300000
+  timeout: number = 300000,
 ): Promise<AgentTaskResult> {
   const queue = await initializeQueue();
   const job = await queue.getJob(jobId);

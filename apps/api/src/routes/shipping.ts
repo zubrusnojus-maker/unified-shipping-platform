@@ -1,8 +1,11 @@
 import { Router, type IRouter } from 'express';
 import { createProvidersFromEnv, N8nProvider } from '@unified/shipping-providers';
+import { shippingEnv } from '@unified/env';
+import { ShipFromAddressRepository } from '@unified/database';
 import type { RateRequest, LabelRequest } from '@unified/types';
 
 const router: IRouter = Router();
+const shipFromRepo = new ShipFromAddressRepository();
 
 // Initialize providers
 const providers = createProvidersFromEnv();
@@ -52,6 +55,98 @@ router.post('/rates', async (req, res) => {
     const request: RateRequest = req.body;
     const { provider: preferredProvider } = req.query;
 
+    // If originId is provided, fetch the ship-from address
+    if (request.originId && !request.origin) {
+      const shipFromAddress = await shipFromRepo.findById(request.originId);
+      if (!shipFromAddress) {
+        return res.status(404).json({
+          success: false,
+          error: {
+            code: 'SHIP_FROM_NOT_FOUND',
+            message: `Ship-from address with ID ${request.originId} not found`,
+          },
+        });
+      }
+      request.origin = {
+        name: shipFromAddress.name,
+        company: shipFromAddress.company,
+        street1: shipFromAddress.street1,
+        street2: shipFromAddress.street2,
+        city: shipFromAddress.city,
+        state: shipFromAddress.state,
+        zip: shipFromAddress.zip,
+        country: shipFromAddress.country,
+        phone: shipFromAddress.phone,
+        email: shipFromAddress.email,
+      };
+    }
+
+    // If no origin provided, try to get the default address
+    if (!request.origin) {
+      const userId = req.body.userId || '00000000-0000-0000-0000-000000000000';
+      const defaultAddress = await shipFromRepo.findDefault(userId);
+      if (defaultAddress) {
+        request.origin = {
+          name: defaultAddress.name,
+          company: defaultAddress.company,
+          street1: defaultAddress.street1,
+          street2: defaultAddress.street2,
+          city: defaultAddress.city,
+          state: defaultAddress.state,
+          zip: defaultAddress.zip,
+          country: defaultAddress.country,
+          phone: defaultAddress.phone,
+          email: defaultAddress.email,
+        };
+      }
+    }
+
+    if (!request.origin) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'ORIGIN_REQUIRED',
+          message:
+            'Origin address is required. Provide either origin or originId, or set a default ship-from address.',
+        },
+      });
+    }
+
+    // Optional address validation preflight (remote via provider)
+    const doValidate = shippingEnv.validation.mode !== 'off';
+    if (doValidate) {
+      const easypost = providers.get('easypost');
+      const validationProvider =
+        easypost ||
+        Array.from(providers.values()).find(
+          (p) => typeof (p as any).validateAddress === 'function',
+        );
+      if (validationProvider && request.origin && request.destination) {
+        const [ov, dv] = await Promise.all([
+          (validationProvider as any).validateAddress(request.origin),
+          (validationProvider as any).validateAddress(request.destination),
+        ]);
+        const issues: string[] = [];
+        if (!ov.valid) issues.push(...(ov.errors || []).map((e: string) => `origin: ${e}`));
+        if (!dv.valid) issues.push(...(dv.errors || []).map((e: string) => `destination: ${e}`));
+        if (issues.length) {
+          if (shippingEnv.validation.autofix && ov.suggested && dv.suggested) {
+            request.origin = ov.suggested;
+            request.destination = dv.suggested;
+          } else {
+            return res.status(400).json({
+              success: false,
+              error: {
+                code: 'ADDRESS_INVALID',
+                message: 'Address validation failed',
+                details: issues,
+              },
+            });
+          }
+        }
+      }
+    }
+
     const allRates: any[] = [];
     const errors: any[] = [];
 
@@ -73,7 +168,7 @@ router.post('/rates', async (req, res) => {
             error: err.message,
           });
         }
-      })
+      }),
     );
 
     res.json({
@@ -104,9 +199,64 @@ router.post('/book', async (req, res) => {
     const request: LabelRequest = req.body;
     const providerName = request.rate?.provider?.toLowerCase();
 
-    const provider = providerName
-      ? providers.get(providerName)
-      : providers.values().next().value;
+    // If originId is provided, fetch the ship-from address
+    if (request.originId && !request.origin) {
+      const shipFromAddress = await shipFromRepo.findById(request.originId);
+      if (!shipFromAddress) {
+        return res.status(404).json({
+          success: false,
+          error: {
+            code: 'SHIP_FROM_NOT_FOUND',
+            message: `Ship-from address with ID ${request.originId} not found`,
+          },
+        });
+      }
+      request.origin = {
+        name: shipFromAddress.name,
+        company: shipFromAddress.company,
+        street1: shipFromAddress.street1,
+        street2: shipFromAddress.street2,
+        city: shipFromAddress.city,
+        state: shipFromAddress.state,
+        zip: shipFromAddress.zip,
+        country: shipFromAddress.country,
+        phone: shipFromAddress.phone,
+        email: shipFromAddress.email,
+      };
+    }
+
+    // If no origin provided, try to get the default address
+    if (!request.origin) {
+      const userId = req.body.userId || '00000000-0000-0000-0000-000000000000';
+      const defaultAddress = await shipFromRepo.findDefault(userId);
+      if (defaultAddress) {
+        request.origin = {
+          name: defaultAddress.name,
+          company: defaultAddress.company,
+          street1: defaultAddress.street1,
+          street2: defaultAddress.street2,
+          city: defaultAddress.city,
+          state: defaultAddress.state,
+          zip: defaultAddress.zip,
+          country: defaultAddress.country,
+          phone: defaultAddress.phone,
+          email: defaultAddress.email,
+        };
+      }
+    }
+
+    if (!request.origin) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'ORIGIN_REQUIRED',
+          message:
+            'Origin address is required. Provide either origin or originId, or set a default ship-from address.',
+        },
+      });
+    }
+
+    const provider = providerName ? providers.get(providerName) : providers.values().next().value;
 
     if (!provider) {
       return res.status(400).json({
@@ -116,6 +266,38 @@ router.post('/book', async (req, res) => {
           message: `Provider ${providerName || 'default'} not configured`,
         },
       });
+    }
+
+    // Optional address validation preflight before booking
+    const doValidate = shippingEnv.validation.mode !== 'off';
+    if (
+      doValidate &&
+      request.origin &&
+      request.destination &&
+      typeof (provider as any).validateAddress === 'function'
+    ) {
+      const [ov, dv] = await Promise.all([
+        (provider as any).validateAddress(request.origin),
+        (provider as any).validateAddress(request.destination),
+      ]);
+      const issues: string[] = [];
+      if (!ov.valid) issues.push(...(ov.errors || []).map((e: string) => `origin: ${e}`));
+      if (!dv.valid) issues.push(...(dv.errors || []).map((e: string) => `destination: ${e}`));
+      if (issues.length) {
+        if (shippingEnv.validation.autofix && ov.suggested && dv.suggested) {
+          request.origin = ov.suggested;
+          request.destination = dv.suggested;
+        } else {
+          return res.status(400).json({
+            success: false,
+            error: {
+              code: 'ADDRESS_INVALID',
+              message: 'Address validation failed',
+              details: issues,
+            },
+          });
+        }
+      }
     }
 
     const label = await provider.createLabel(request);
